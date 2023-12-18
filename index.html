@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fitness app</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="stylesheet" href="./assets/styles.css">
+  </head>
+  
+  <body>
+    <div class="navbar">
+        <h3>Fitness PWA</h3>
+        <a class="nav-link" href="photo.html">Create new workout</a>
+        <button id="btnEnableNotifications">
+          Notify me
+        </button>
+        <button id="btnTestPushNotification">
+          Test Push Notification
+        </button>
+    </div>
+    <img src="/assets/img/gym-logo.png" alt="dumbell" width="200" height="200">
+    <div id="workoutsContainer"></div>
+    <script>
+        navigator.serviceWorker.register('./service-worker.mjs', {type: 'module'})
+          .then(reg => console.log('SW registered!', reg))
+          .catch(err => console.error('Error registering service worker', err));
+
+    function displayWorkouts(workouts) {
+        const workoutsContainer = document.getElementById('workoutsContainer');
+        workoutsContainer.innerHTML = ''; // Clear previous content
+
+        workouts.forEach(workout => {
+            console.log("appending", workout)
+            const workoutElement = document.createElement('div');
+            workoutElement.innerHTML = `
+                <h3>${workout.workout_title}</h3>
+                <p>Duration: ${workout.duration} minutes</p>
+                <img src="/uploads/${workout.photoPath}" alt="workout photo" width="200" height="200">
+            `;
+
+            workoutsContainer.appendChild(workoutElement);
+        });
+    }
+
+    window.addEventListener('load', () => {
+        fetch('/workouts')
+        .then(response => response.json())
+        .then(workouts => {
+            displayWorkouts(workouts);
+        })
+        .catch(error => {
+            console.error('Error fetching workouts:', error);
+        });
+    });
+
+    document.getElementById('btnTestPushNotification').addEventListener('click', function () {
+    
+    fetch('/testPushNotification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        alert('Test push notification triggered successfully!');
+    })
+    .catch(error => {
+        console.error('Error triggering test push notification:', error);
+    });
+    });
+    </script>
+    <script src="push.js"></script>
+    This is home page!
+  </body>
+</html>

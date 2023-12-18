@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fitness app</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="stylesheet" href="./assets/styles.css">
+  </head>
+  
+  <body>
+    <div class="header">
+      <h3>Fitness PWA</h3>
+    </div>
+    <img src="/assets/img/gym-logo.png" alt="dumbell" width="200" height="200">
+    <div id="snapPhoto" >
+        <h3>After workout photo:</h3>
+        <div id="beforeSnap" >
+            <video id="player" width="100%" autoplay></video>
+            <button class="btn btn-primary mt-2" id="btnSnap">
+                <i class="bi bi-camera"></i>
+                Snap
+            </button>
+        </div>
+        <div id="uploadToDo">
+            <h3>Create new task:</h3>
+            <form id="workoutForm" action="#" method="post">
+                <label for="title">Workout:</label>
+                <input type="text" id="title" name="title" required>
+    
+                <label for="duration">Duration:</label>
+                <input type="text" id="duration" name="duration" placeholder="in minutes" required>
+
+                <div id="afterSnap" class="d-none">
+                    <canvas id="cnvFood"></canvas>
+                    <input id="snapName" type="text" class="form-control mt-2" placeholder="give it a catchy name..." />
+                    <button class="btn btn-success" id="btnUpload">
+                        <i class="bi bi-cloud-upload"></i>
+                        Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script type="module">
+        import {
+                get,
+                set,
+            } from "https://cdn.jsdelivr.net/npm/idb-keyval@6/+esm";
+
+            let player = document.getElementById("player");
+            let canvas = document.getElementById("cnvFood");
+            let beforeSnap = document.getElementById("beforeSnap");
+            let afterSnap = document.getElementById("afterSnap");
+            let snapName = document.getElementById("snapName");
+            let startCapture = function () {                
+                beforeSnap.classList.remove("d-none");
+                beforeSnap.classList.add("d-flex", "flex-column", "align-items-center");
+                afterSnap.classList.remove("d-flex", "flex-column", "align-items-center");
+                afterSnap.classList.add("d-none");
+                if (!("mediaDevices" in navigator)) {
+                    // fallback to file upload button, ili sl.
+                    // vidjet i custom API-je: webkitGetUserMedia i mozGetUserMedia
+                } else {
+                    navigator.mediaDevices
+                        .getUserMedia({ video: true, audio: false })
+                        .then((stream) => {
+                            player.srcObject = stream;
+                        })
+                        .catch((err) => {
+                            alert("Media stream not working");
+                            console.log(err);
+                        });
+                }
+            };
+            startCapture();
+            let stopCapture = function () {
+                afterSnap.classList.remove("d-none");
+                afterSnap.classList.add("d-flex", "flex-column", "align-items-center");
+                beforeSnap.classList.remove("d-flex", "flex-column", "align-items-center");
+                beforeSnap.classList.add("d-none");
+                player.srcObject.getVideoTracks().forEach(function (track) {
+                    track.stop();
+                });
+            }
+            document
+                .getElementById("btnSnap")
+                .addEventListener("click", function (event) {
+                    canvas.width = player.getBoundingClientRect().width;
+                    canvas.height = player.getBoundingClientRect().height;                    
+                    canvas
+                        .getContext("2d")
+                        .drawImage(player, 0, 0, canvas.width, canvas.height);
+                    stopCapture();
+                });
+            document
+                .getElementById("btnUpload")
+                .addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const workout_title = document.getElementById("title").value.trim();
+                    const duration = document.getElementById("duration").value.trim();
+                    if (!snapName.value.trim()) {
+                        alert("Give it a cathcy name!");
+                        return false;
+                    }
+                    const workoutData = {
+                        workout_title,
+                        duration,
+                    };
+                    if (
+                        "serviceWorker" in navigator &&
+                        "SyncManager" in window
+                    ) {
+                        let data_url = canvas.toDataURL();
+                        fetch(data_url)
+                            .then((res) => res.blob())
+                            .then((blob) => {
+                                let ts = new Date().toISOString();
+                                let id = ts + snapName.value.replace(/\s/g, '_');  // ws->_
+                                set(id, {
+                                    id,
+                                    ts,
+                                    title: snapName.value,
+                                    workout_title, 
+                                    duration,
+                                    image: blob
+                                });
+                                return navigator.serviceWorker.ready;
+                            })
+                            .then((swRegistration) => {
+                                return swRegistration.sync.register(
+                                    "sync-workouts"
+                                );
+                            })
+                            .then(() => {
+                                console.log("Queued for sync");
+                                startCapture();
+                            })
+                            .catch((err) => {
+                                console.log(error);
+                            });
+                    } else {
+                        alert("TODO - vaš preglednik ne podržava bckg sync...");
+                    }
+                });
+        </script>
+
+  </body>
+</html>
